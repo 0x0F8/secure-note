@@ -15,8 +15,9 @@ export const getServerSideProps = (async (
   context: GetServerSidePropsContext
 ) => {
   const id = context.params?.id;
+  const protocol = document.location.protocol;
   const res = await fetch(
-    `http://${NEXT_PUBLIC_API_HOST}/api/note/unlock/${id}`
+    `${protocol}://${NEXT_PUBLIC_API_HOST}/api/note/unlock/${id}`
   );
   const json: UnlockNoteResponse = await res.json();
   const [salt, data] = (json?.data || "").split(":");

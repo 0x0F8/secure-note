@@ -94,7 +94,10 @@ export default function Home() {
       .then((res) => res.json())
       .then((data) => {
         const passwordHash = usedDefaultPassword ? `#${defaultPassword}` : "";
-        console.log(`http://localhost:3000/unlock/${data.data}${passwordHash}`);
+        const protocol = document.location.protocol;
+        console.log(
+          `${protocol}//localhost:3000/unlock/${data.data}${passwordHash}`
+        );
       });
   }, [cipher, password, defaultPassword, salt, isWorking, lastCipher]);
 
