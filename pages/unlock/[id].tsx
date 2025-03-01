@@ -1,48 +1,105 @@
-"use client"
+"use client";
+import { NEXT_PUBLIC_API_HOST } from "@/constants";
 import useDecryptWorker from "@/hooks/useDecryptWorker";
-import { createKey, } from "@/util/crypto";
+import { createKey } from "@/util/crypto";
+import { isBrowser } from "@/util/next";
 import { GetServerSideProps, GetServerSidePropsContext } from "next";
-import { useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 
 type UnlockNoteResponse = {
-    success: boolean; data: string
-}
+  success: boolean;
+  data: string;
+};
 
-export const getServerSideProps = (async (context: GetServerSidePropsContext) => {
-    const id = context.params?.id
-    const password = context.query?.password
-    const salt = context.query?.salt
-    const res = await fetch(`http://${process.env.NEXT_PUBLIC_API_HOST}/api/note/unlock/${id}`)
-    const json: UnlockNoteResponse = await res.json()
-    console.log(json)
-    return { props: { data: json.data || '', password: password || '', salt: salt || '' } }
-}) satisfies GetServerSideProps<{ data: string }>
+export const getServerSideProps = (async (
+  context: GetServerSidePropsContext
+) => {
+  const id = context.params?.id;
+  const salt = context.query?.salt;
+  const res = await fetch(
+    `http://${NEXT_PUBLIC_API_HOST}/api/note/unlock/${id}`
+  );
+  const json: UnlockNoteResponse = await res.json();
+  return {
+    props: {
+      data: json.data || "",
+      salt: salt || "",
+    },
+  };
+}) satisfies GetServerSideProps<{ data: string }>;
 
-export default function Home({ data, password, salt }: { data: string, password: string, salt: string }) {
-    if (!password) {
-        return 'Password is empty'
+export default function Home({ data, salt }: { data: string; salt: string }) {
+  if (!salt) {
+    return "Salt is empty";
+  }
+  if (!data) {
+    return "Data is empty";
+  }
+
+  const hashPassword = isBrowser() ? window.location.hash.substring(1) : "";
+  const isPasswordRequired = !hashPassword;
+  const [password, setPassword] = useState<string>(hashPassword);
+  const [didSubmit, setDidSubmit] = useState<boolean>(false);
+  const [key, setKey] = useState<string>("");
+  const isValid = password?.length > 0;
+  const [deciphered, isWorking, didDecrypt] = useDecryptWorker<string>(
+    didSubmit && key.length > 0,
+    {
+      data,
+      key,
     }
-    if (!salt) {
-        return 'Salt is empty'
+  );
+
+  const onPasswordChange = (event: ChangeEvent<HTMLInputElement>) =>
+    setPassword(event.target.value);
+  const onSubmit = () => {
+    if (!isValid || isWorking) return;
+    setDidSubmit(true);
+  };
+
+  useEffect(() => {
+    if (!isValid || isWorking) return;
+    (async () => {
+      const nextKey = await createKey(password, salt);
+      if (key === nextKey) return;
+      setKey(nextKey);
+      if (!isPasswordRequired) {
+        setDidSubmit(true);
+      }
+    })();
+  }, [data, password, salt, key, isPasswordRequired]);
+
+  useEffect(() => {
+    if (!isWorking) {
+      setDidSubmit(false);
     }
-    if (!data) {
-        return 'Data is empty'
-    }
+  }, [isWorking]);
 
-    const [key, setKey] = useState<string>('')
-    useEffect(() => {
-        (async () => {
-            const key = await createKey(password, salt)
-            setKey(key)
-        })()
-    }, [data, password, salt])
+  return (
+    <div>
+      {isPasswordRequired && (
+        <>
+          <input
+            type="text"
+            name="password"
+            value={password}
+            onChange={onPasswordChange}
+          />
+          <button
+            type="submit"
+            name="decrypt"
+            disabled={!isValid}
+            onClick={onSubmit}
+          >
+            Decrypt
+          </button>
+        </>
+      )}
 
-    const deciphered = useDecryptWorker<string>({ data, key })
-
-    return (
-        <div >
-            {data}<br />
-            {deciphered}
-        </div>
-    );
+      {data}
+      <br />
+      {didDecrypt === false && <div>Decrypt failure!</div>}
+      {deciphered}
+    </div>
+  );
 }
