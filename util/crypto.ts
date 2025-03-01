@@ -13,15 +13,15 @@ export function createKey(password: string, salt: string, iterations = 300000): 
     })
 }
 
-export function encrypt(input: string, password: string) {
-    const cipher = createCipher('aes256', password);
+export function encrypt(input: string, key: string) {
+    const cipher = createCipher('aes256', key);
     let hex = cipher.update(input, 'utf8', 'hex');
     hex += cipher.final('hex')
     return hex
 }
 
-export function decrypt(input: string, password: string) {
-    const cipher = createDecipher('aes256', password);
+export function decrypt(input: string, key: string) {
+    const cipher = createDecipher('aes256', key);
     let str = cipher.update(input, 'hex', 'utf8');
     str += cipher.final('utf8')
     return str

@@ -1,5 +1,6 @@
 "use client"
-import { createKey, decrypt } from "@/util/crypto";
+import useDecryptWorker from "@/hooks/useDecryptWorker";
+import { createKey, } from "@/util/crypto";
 import { GetServerSideProps, GetServerSidePropsContext } from "next";
 import { useEffect, useState } from "react";
 
@@ -28,19 +29,20 @@ export default function Home({ data, password, salt }: { data: string, password:
         return 'Data is empty'
     }
 
-    const [decipher, setState] = useState<string>('')
+    const [key, setKey] = useState<string>('')
     useEffect(() => {
         (async () => {
             const key = await createKey(password, salt)
-            const payload = decrypt(data, key)
-            setState(payload)
+            setKey(key)
         })()
     }, [data, password, salt])
+
+    const deciphered = useDecryptWorker<string>({ data, key })
 
     return (
         <div >
             {data}<br />
-            {decipher}
+            {deciphered}
         </div>
     );
 }
