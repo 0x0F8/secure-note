@@ -86,7 +86,8 @@ export default function Home() {
     if (!cipher || !isValid || !salt || isWorking || !isCipherUnique) return;
     console.log("cipher:", cipher);
 
-    fetch(`http://${process.env.NEXT_PUBLIC_API_HOST}/api/note/create`, {
+    const protocol = document.location.protocol;
+    fetch(`${protocol}//${process.env.NEXT_PUBLIC_API_HOST}/api/note/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ data: `${salt}:${cipher}` }),
@@ -94,10 +95,7 @@ export default function Home() {
       .then((res) => res.json())
       .then((data) => {
         const passwordHash = usedDefaultPassword ? `#${defaultPassword}` : "";
-        const protocol = document.location.protocol;
-        console.log(
-          `${protocol}//localhost:3000/unlock/${data.data}${passwordHash}`
-        );
+        console.log(`/${data.data}${passwordHash}`);
       });
   }, [cipher, password, defaultPassword, salt, isWorking, lastCipher]);
 
