@@ -1,5 +1,4 @@
 "use client";
-import styles from "./page.module.css";
 import { ChangeEvent, useEffect, useState } from "react";
 import PasswordStrengthBar from "react-password-strength-bar";
 import { createKey, createPassword } from "@/util/crypto";
@@ -37,6 +36,7 @@ export default function Home() {
     {
       data,
       key,
+      compress: true,
     }
   );
 
@@ -89,14 +89,12 @@ export default function Home() {
     fetch(`http://${process.env.NEXT_PUBLIC_API_HOST}/api/note/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data: cipher }),
+      body: JSON.stringify({ data: `${salt}:${cipher}` }),
     })
       .then((res) => res.json())
       .then((data) => {
         const passwordHash = usedDefaultPassword ? `#${defaultPassword}` : "";
-        console.log(
-          `http://localhost:3000/unlock/${data.data}?salt=${salt}${passwordHash}`
-        );
+        console.log(`http://localhost:3000/unlock/${data.data}${passwordHash}`);
       });
   }, [cipher, password, defaultPassword, salt, isWorking, lastCipher]);
 

@@ -15,27 +15,20 @@ export const getServerSideProps = (async (
   context: GetServerSidePropsContext
 ) => {
   const id = context.params?.id;
-  const salt = context.query?.salt;
   const res = await fetch(
     `http://${NEXT_PUBLIC_API_HOST}/api/note/unlock/${id}`
   );
   const json: UnlockNoteResponse = await res.json();
+  const [salt, data] = (json?.data || "").split(":");
   return {
     props: {
-      data: json.data || "",
+      data: data || "",
       salt: salt || "",
     },
   };
 }) satisfies GetServerSideProps<{ data: string }>;
 
 export default function Home({ data, salt }: { data: string; salt: string }) {
-  if (!salt) {
-    return "Salt is empty";
-  }
-  if (!data) {
-    return "Data is empty";
-  }
-
   const hashPassword = isBrowser() ? window.location.hash.substring(1) : "";
   const isPasswordRequired = !hashPassword;
   const [password, setPassword] = useState<string>(hashPassword);
@@ -74,6 +67,13 @@ export default function Home({ data, salt }: { data: string; salt: string }) {
       setDidSubmit(false);
     }
   }, [isWorking]);
+
+  if (!salt) {
+    return "Salt is empty";
+  }
+  if (!data) {
+    return "Data is empty";
+  }
 
   return (
     <div>
