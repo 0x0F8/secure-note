@@ -1,5 +1,5 @@
 "use client";
-import { NEXT_PUBLIC_API_HOST } from "@/constants";
+import { NEXT_PUBLIC_API_HOST_INTERNAL } from "@/constants";
 import useDecryptWorker from "@/hooks/useDecryptWorker";
 import { createKey } from "@/util/crypto";
 import { isBrowser } from "@/util/next";
@@ -15,9 +15,8 @@ export const getServerSideProps = (async (
   context: GetServerSidePropsContext
 ) => {
   const id = context.params?.id;
-  const protocol = document.location.protocol;
   const res = await fetch(
-    `${protocol}://${NEXT_PUBLIC_API_HOST}/api/note/unlock/${id}`
+    `http://${NEXT_PUBLIC_API_HOST_INTERNAL}/api/note/unlock/${id}`
   );
   const json: UnlockNoteResponse = await res.json();
   const [salt, data] = (json?.data || "").split(":");
