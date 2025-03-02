@@ -5,9 +5,10 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "dev:tls": "next dev --turbopack --experimental-https",
-    "build": "next build",
+    "build": "rimraf .next && next build",
     "start": "next start -p 8001",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy": "npm run build && scp -r .next root@ssh.secrypt.zip:/var/node/secure-note"
   },
   "dependencies": {
     "crypto-browserify": "^3.12.1",
@@ -26,6 +27,7 @@
     "@types/react-icons": "^3.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.2.0",
+    "rimraf": "^6.0.1",
     "typescript": "^5"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
