@@ -3,43 +3,51 @@ import { NEXT_PUBLIC_API_HOST_INTERNAL } from "@/constants";
 import useDecryptWorker from "@/hooks/useDecryptWorker";
 import { createKey } from "@/util/crypto";
 import { isBrowser } from "@/util/next";
+import { validatePassword } from "@/util/validate";
 import { GetServerSideProps, GetServerSidePropsContext } from "next";
 import { ChangeEvent, useEffect, useState } from "react";
 
 type UnlockNoteResponse = {
   success: boolean;
-  data: string;
+  data: string | null;
 };
 
 export const getServerSideProps = (async (
   context: GetServerSidePropsContext
 ) => {
   const id = context.params?.id;
-  const res = await fetch(
-    `http://${NEXT_PUBLIC_API_HOST_INTERNAL}/api/note/unlock/${id}`
-  );
-  const json: UnlockNoteResponse = await res.json();
-  const [salt, data] = (json?.data || "").split(":");
+  let json: UnlockNoteResponse = { success: false, data: null };
+
+  try {
+    const response = await fetch(
+      `http://${NEXT_PUBLIC_API_HOST_INTERNAL}/api/file/unlock/${id}`
+    );
+    json = await response.json();
+  } catch {}
+
   return {
     props: {
-      data: data || "",
-      salt: salt || "",
+      link: json.data,
     },
   };
-}) satisfies GetServerSideProps<{ data: string }>;
+}) satisfies GetServerSideProps<{ link: string | null }>;
 
-export default function Home({ data, salt }: { data: string; salt: string }) {
+export default function Home({ link }: { link: string | null }) {
   const hashPassword = isBrowser() ? window.location.hash.substring(1) : "";
   const isPasswordRequired = !hashPassword;
   const [password, setPassword] = useState<string>(hashPassword);
+  const [data, setData] = useState<string | undefined>(undefined);
+  const [salt, setSalt] = useState<string | undefined>(undefined);
   const [didSubmit, setDidSubmit] = useState<boolean>(false);
   const [key, setKey] = useState<string>("");
-  const isValid = password?.length > 0;
+  const [error, setError] = useState<string>("");
+  const isValid = validatePassword(password);
   const [deciphered, isWorking, didDecrypt] = useDecryptWorker<string>(
-    didSubmit && key.length > 0,
+    didSubmit && key.length > 0 && !!data && !!salt,
     {
       data,
       key,
+      compress: false,
     }
   );
 
@@ -49,9 +57,10 @@ export default function Home({ data, salt }: { data: string; salt: string }) {
     if (!isValid || isWorking) return;
     setDidSubmit(true);
   };
+  const onCopy = () => navigator.clipboard.writeText(deciphered as string);
 
   useEffect(() => {
-    if (!isValid || isWorking) return;
+    if (!isValid || isWorking || !salt) return;
     (async () => {
       const nextKey = await createKey(password, salt);
       if (key === nextKey) return;
@@ -63,21 +72,41 @@ export default function Home({ data, salt }: { data: string; salt: string }) {
   }, [data, password, salt, key, isPasswordRequired]);
 
   useEffect(() => {
+    if (link == null) {
+      setError("Invalid link!");
+      return;
+    }
+
+    (async () => {
+      const response = await fetch(link);
+      if (!response || !response.ok) {
+        setError("Invalid link!");
+        return;
+      }
+
+      const rawData = await response.text();
+      const [salt, data] = (rawData || "").split(":");
+      if (!salt) {
+        setError("Salt is empty!");
+        return;
+      } else if (!data) {
+        setError("Data is empty!");
+        return;
+      }
+      setSalt(salt);
+      setData(data);
+    })();
+  }, []);
+
+  useEffect(() => {
     if (!isWorking) {
       setDidSubmit(false);
     }
   }, [isWorking]);
 
-  if (!salt) {
-    return "Salt is empty";
-  }
-  if (!data) {
-    return "Data is empty";
-  }
-
   return (
     <div>
-      {isPasswordRequired && (
+      {isPasswordRequired && !error && (
         <>
           <input
             type="text"
@@ -95,11 +124,17 @@ export default function Home({ data, salt }: { data: string; salt: string }) {
           </button>
         </>
       )}
-
       {data}
-      <br />
+      {didDecrypt && (
+        <div>
+          {/* <div>{deciphered}</div> */}
+          <img src={`data:image/jpg;base64,${deciphered}`} />
+          <button onClick={onCopy}>Copy</button>
+        </div>
+      )}
+
       {didDecrypt === false && <div>Decrypt failure!</div>}
-      {deciphered}
+      {error && <div>{error}</div>}
     </div>
   );
 }

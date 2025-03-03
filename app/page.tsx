@@ -4,19 +4,21 @@ import PasswordStrengthBar from "react-password-strength-bar";
 import { createKey, createPassword } from "@/util/crypto";
 import useEncryptWorker from "@/hooks/useEncryptWorker";
 import { AiOutlineLoading3Quarters } from "react-icons/ai";
+import { validatePassword } from "@/util/validate";
+import prettyBytes from "pretty-bytes";
 
 export default function Home() {
   const [{ data }, setDataState] = useState<{
     data: string;
   }>({ data: "" });
-  const [{ password, defaultPassword, strength }, setPasswordState] = useState<{
+  const [{ password, defaultPassword, url }, setPasswordState] = useState<{
     password: string;
     defaultPassword: string;
-    strength: number;
+    url: string;
   }>({
     password: "",
-    strength: 0,
     defaultPassword: createPassword(64),
+    url: "",
   });
   const [{ salt, key, shouldEncrypt, lastCipher }, setEncryptionState] =
     useState<{
@@ -36,13 +38,14 @@ export default function Home() {
     {
       data,
       key,
-      compress: true,
+      compress: false,
     }
   );
 
   const isValid =
     data.length > 0 &&
-    (password.length === 0 || (password.length > 0 && strength > 1));
+    (password.length === 0 ||
+      (password.length > 0 && validatePassword(password)));
   const usedDefaultPassword = password.length === 0;
 
   const onDataChange = (event: ChangeEvent<HTMLTextAreaElement>) =>
@@ -58,8 +61,10 @@ export default function Home() {
       password: event.target.value,
     }));
 
-  const onStrengthChange = (score: number) =>
-    setPasswordState((state) => ({ ...state, strength: score }));
+  const onCopy = () =>
+    navigator.clipboard.writeText(
+      `${document.location.protocol}//${document.location.host}${url}`
+    );
 
   const onSubmit = async () => {
     if (!isValid) return;
@@ -87,7 +92,7 @@ export default function Home() {
     console.log("cipher:", cipher);
 
     fetch(
-      `${document.location.protocol}//${process.env.NEXT_PUBLIC_API_HOST}/api/note/create`,
+      `${document.location.protocol}//${process.env.NEXT_PUBLIC_API_HOST}/api/file/create`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -97,7 +102,11 @@ export default function Home() {
       .then((res) => res.json())
       .then((data) => {
         const passwordHash = usedDefaultPassword ? `#${defaultPassword}` : "";
-        console.log(`/${data.data}${passwordHash}`);
+        const id = data.data;
+        setPasswordState((state) => ({
+          ...state,
+          url: `/unlock/${id}${passwordHash}`,
+        }));
       });
   }, [cipher, password, defaultPassword, salt, isWorking, lastCipher]);
 
@@ -109,7 +118,7 @@ export default function Home() {
   return (
     <div>
       <textarea id="data" name="data" onChange={onDataChange} />
-
+      <br />
       <input
         type="text"
         name="password"
@@ -117,18 +126,34 @@ export default function Home() {
         onChange={onPasswordChange}
       />
       {password.length > 0 && (
-        <PasswordStrengthBar
-          password={password}
-          onChangeScore={onStrengthChange}
-        />
+        <PasswordStrengthBar password={password} minLength={8} />
       )}
-
+      <br />
       <button id="submit" disabled={!isValid} onClick={onSubmit}>
-        Secure
+        secure
       </button>
-
+      <br />
       {isWorking && <AiOutlineLoading3Quarters />}
+      <br />
       {didEncrypt === false && <div>Encrypt failure!</div>}
+      {didEncrypt && (
+        <div>
+          <div>
+            <div>input: {prettyBytes(data.length)}</div>
+            <div>output: {prettyBytes((cipher as string).length)}</div>
+            <div>
+              {Math.round(
+                100 - (data.length / (cipher as string).length) * 100
+              )}
+              % bigger
+            </div>
+          </div>
+          <button onClick={onCopy}>copy</button>
+          <a href={url} target="_blank">
+            <button> unlock</button>
+          </a>
+        </div>
+      )}
     </div>
   );
 }

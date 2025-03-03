@@ -14,7 +14,7 @@ export function createPassword(length = 64) {
 export function createKey(
   password: string,
   salt: string,
-  iterations = 300000
+  iterations = 210000
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     pbkdf2(password, salt, iterations, 64, "sha512", (err, key) => {
