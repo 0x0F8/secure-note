@@ -3,12 +3,13 @@ import {
   pbkdf2,
   createCipher,
   createDecipher,
+  createHmac,
 } from "crypto-browserify";
 
 export function createPassword(length = 64) {
   return randomBytes(length + 10)
     .toString("hex")
-    .slice(0, length - 1);
+    .slice(0, length);
 }
 
 export function createKey(
@@ -36,4 +37,10 @@ export function decrypt(input: string, key: string) {
   let str = cipher.update(input, "hex", "utf8");
   str += cipher.final("utf8");
   return str;
+}
+
+export function calculateHmac(input: string, key: string) {
+  const hmac = createHmac("sha512", key);
+  hmac.update(input);
+  return hmac.digest("hex");
 }
